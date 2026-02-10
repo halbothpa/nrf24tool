@@ -1,5 +1,11 @@
 name: "🚀 Release FAP Builds"
 
+# Automated Tag Management:
+# - For push/schedule triggers without a tag: Creates auto-YYYYMMDD-<7-char-sha> tag (UTC)
+# - For release triggers: Uses the release's tag (e.g., v1.0.0)
+# - Auto-tagged releases are marked as pre-releases
+# - Manual releases (with custom tags) are full releases
+
 on:
   release:
     types: [published]
@@ -11,8 +17,6 @@ on:
   schedule: 
     # do a build every day
     - cron: "1 1 * * *"
-permissions:
-  contents: write
 
 jobs:
   build:
@@ -45,9 +49,72 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     name: '📦 Publish Release'
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect or create release tag
+        id: tag
+        run: |
+          # For release events, always use the triggering release's tag
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+            echo "Using release tag: $TAG"
+            echo "tag=$TAG" >> $GITHUB_OUTPUT
+            echo "is_auto=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # For push/schedule events, check for existing non-auto tags first
+          EXISTING_TAG=$(git tag --points-at HEAD | grep -v '^auto-' | head -n 1)
+
+          if [ -n "$EXISTING_TAG" ]; then
+            echo "Found existing tag: $EXISTING_TAG"
+            echo "tag=$EXISTING_TAG" >> $GITHUB_OUTPUT
+            echo "is_auto=false" >> $GITHUB_OUTPUT
+          else
+            # Generate automatic tag for non-tagged commits
+            DATE=$(date -u +%Y%m%d)
+            SHORT_SHA=$(git rev-parse --short=7 HEAD)
+            AUTO_TAG="auto-${DATE}-${SHORT_SHA}"
+
+            # Check if this tag already exists on origin (handles concurrent/retried runs)
+            if git ls-remote --tags origin "refs/tags/$AUTO_TAG" | grep -q "$AUTO_TAG"; then
+              echo "Tag $AUTO_TAG already exists on origin, reusing it"
+              git fetch origin "refs/tags/$AUTO_TAG:refs/tags/$AUTO_TAG"
+            else
+              echo "No tag found. Creating automatic tag: $AUTO_TAG"
+              # Configure git with GitHub Actions bot identity for tag creation
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              
+              # Use lightweight tag for automated builds to avoid annotation metadata issues
+              git tag "$AUTO_TAG"
+
+              # Push the tag and verify it succeeded
+              if git push origin "$AUTO_TAG"; then
+                echo "Successfully pushed tag: $AUTO_TAG"
+              else
+                # Tag might have been created by a concurrent run
+                if git ls-remote --tags origin "refs/tags/$AUTO_TAG" | grep -q "$AUTO_TAG"; then
+                  echo "Tag $AUTO_TAG was created by another run, fetching it"
+                  git fetch origin "refs/tags/$AUTO_TAG:refs/tags/$AUTO_TAG"
+                else
+                  echo "Error: Failed to push tag $AUTO_TAG."
+                  echo "This may be due to repository permissions or network issues."
+                  echo "Ensure the GITHUB_TOKEN has write permissions to contents."
+                  exit 1
+                fi
+              fi
+            fi
+
+            echo "tag=$AUTO_TAG" >> $GITHUB_OUTPUT
+            echo "is_auto=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -69,10 +136,27 @@ jobs:
       - name: Generate release notes
         id: notes
         env:
-          RELEASE_NAME: ${{ github.event.release.name || github.event.release.tag_name }}
+          RELEASE_NAME: ${{ github.event.release.name || github.event.release.tag_name || steps.tag.outputs.tag }}
           RELEASE_BODY: ${{ github.event.release.body }}
+          IS_AUTO: ${{ steps.tag.outputs.is_auto }}
+          TAG_NAME: ${{ steps.tag.outputs.tag }}
         run: |
-          printf '## 📻 nrf24tool — %s\n\n' "$RELEASE_NAME" > release_notes.md
+          # Compute release title
+          if [ "$IS_AUTO" = "true" ]; then
+            RELEASE_TITLE="Automated Build - ${TAG_NAME}"
+            echo "release_title=$RELEASE_TITLE" >> $GITHUB_OUTPUT
+          else
+            RELEASE_TITLE="${RELEASE_NAME}"
+            echo "release_title=$RELEASE_TITLE" >> $GITHUB_OUTPUT
+          fi
+
+          # Generate release notes
+          if [ "$IS_AUTO" = "true" ]; then
+            printf '## 📻 nrf24tool — %s (Automated Build)\n\n' "$TAG_NAME" > release_notes.md
+            printf '> ⚠️ This is an **automated pre-release build** from the latest commit.\n\n' >> release_notes.md
+          else
+            printf '## 📻 nrf24tool — %s\n\n' "$RELEASE_NAME" > release_notes.md
+          fi
           cat >> release_notes.md << 'EOF'
           > Flipper Zero application for the NRF24L01+ transceiver module
 
@@ -108,9 +192,21 @@ jobs:
             printf '\n### 📝 Release Notes\n\n%s\n' "$RELEASE_BODY" >> release_notes.md
           fi
 
+      - name: Validate tag output
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          if [ -z "$TAG" ]; then
+            echo "Error: No tag was generated or detected. Cannot proceed with release."
+            exit 1
+          fi
+          echo "Validated tag: $TAG"
+
       - name: Upload assets to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.notes.outputs.release_title }}
+          prerelease: ${{ steps.tag.outputs.is_auto == 'true' }}
           files: |
             packed/*.zip
             packed/*.fap
