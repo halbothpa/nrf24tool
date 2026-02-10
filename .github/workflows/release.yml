@@ -3,7 +3,14 @@ name: "🚀 Release FAP Builds"
 on:
   release:
     types: [published]
-
+  push:
+    ## put your main branch name under "branches"
+    branches: 
+      - main 
+  #pull_request:
+  schedule: 
+    # do a build every day
+    - cron: "1 1 * * *"
 permissions:
   contents: write
 
