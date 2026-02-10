@@ -27,6 +27,6 @@ This is a **Flipper Zero** application written in **C** that interfaces with the
 ## Coding Conventions
 
 - C language (C11 compatible)
-- Flipper Zero SDK APIs and FUI framework
+- Flipper Zero SDK APIs and Furi framework
 - Use Flipper Zero's `furi_*` APIs for memory, logging, and threading
 - Follow existing code style in the repository
