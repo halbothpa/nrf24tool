@@ -54,8 +54,8 @@ jobs:
       - name: Detect or create release tag
         id: tag
         run: |
-          # Check if current commit already has a tag
-          EXISTING_TAG=$(git tag --points-at HEAD)
+          # Check if current commit already has a tag (use first tag if multiple)
+          EXISTING_TAG=$(git tag --points-at HEAD | head -n 1)
 
           if [ -n "$EXISTING_TAG" ]; then
             echo "Found existing tag: $EXISTING_TAG"
@@ -71,7 +71,14 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git tag -a "$AUTO_TAG" -m "Automated build for commit $SHORT_SHA"
-            git push origin "$AUTO_TAG"
+
+            # Push the tag and verify it succeeded
+            if git push origin "$AUTO_TAG"; then
+              echo "Successfully pushed tag: $AUTO_TAG"
+            else
+              echo "Error: Failed to push tag $AUTO_TAG"
+              exit 1
+            fi
 
             echo "tag=$AUTO_TAG" >> $GITHUB_OUTPUT
             echo "is_auto=true" >> $GITHUB_OUTPUT
