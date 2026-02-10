@@ -56,7 +56,7 @@ jobs:
         run: |
           # Check if current commit already has a tag
           EXISTING_TAG=$(git tag --points-at HEAD)
-          
+
           if [ -n "$EXISTING_TAG" ]; then
             echo "Found existing tag: $EXISTING_TAG"
             echo "tag=$EXISTING_TAG" >> $GITHUB_OUTPUT
@@ -66,13 +66,13 @@ jobs:
             DATE=$(date +%Y%m%d)
             SHORT_SHA=$(git rev-parse --short HEAD)
             AUTO_TAG="auto-${DATE}-${SHORT_SHA}"
-            
+
             echo "No tag found. Creating automatic tag: $AUTO_TAG"
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             git tag -a "$AUTO_TAG" -m "Automated build for commit $SHORT_SHA"
             git push origin "$AUTO_TAG"
-            
+
             echo "tag=$AUTO_TAG" >> $GITHUB_OUTPUT
             echo "is_auto=true" >> $GITHUB_OUTPUT
           fi
