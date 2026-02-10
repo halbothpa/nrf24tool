@@ -1,6 +1,7 @@
 # nrf24tool
 
 ![License](https://img.shields.io/badge/license-MIT-green) ![Status](https://img.shields.io/badge/status-active-brightgreen)
+[![🚀 Release FAP Builds](https://github.com/halbothpa/nrf24tool/actions/workflows/release.yml/badge.svg)](https://github.com/halbothpa/nrf24tool/actions/workflows/release.yml)
 
 A complete tool for the **Flipper Zero** device, designed to interface with the NRF24L01+ transceiver. It offers functionalities such as transmitting, receiving, packet sniffing, and an experimental "mouse jacker" mode for controlling Unifying receivers.
 
