@@ -76,7 +76,9 @@ jobs:
             if git push origin "$AUTO_TAG"; then
               echo "Successfully pushed tag: $AUTO_TAG"
             else
-              echo "Error: Failed to push tag $AUTO_TAG"
+              echo "Error: Failed to push tag $AUTO_TAG."
+              echo "This may be due to repository permissions or network issues."
+              echo "Ensure the GITHUB_TOKEN has write permissions to contents."
               exit 1
             fi
 
@@ -159,6 +161,15 @@ jobs:
           if [ -n "$RELEASE_BODY" ]; then
             printf '\n### 📝 Release Notes\n\n%s\n' "$RELEASE_BODY" >> release_notes.md
           fi
+
+      - name: Validate tag output
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          if [ -z "$TAG" ]; then
+            echo "Error: No tag was generated or detected. Cannot proceed with release."
+            exit 1
+          fi
+          echo "Validated tag: $TAG"
 
       - name: Upload assets to release
         uses: softprops/action-gh-release@v2
