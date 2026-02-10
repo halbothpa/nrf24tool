@@ -63,7 +63,7 @@ jobs:
             echo "is_auto=false" >> $GITHUB_OUTPUT
           else
             # Generate automatic tag for non-tagged commits
-            DATE=$(date +%Y%m%d)
+            DATE=$(date -u +%Y%m%d)
             SHORT_SHA=$(git rev-parse --short HEAD)
             AUTO_TAG="auto-${DATE}-${SHORT_SHA}"
 
@@ -100,7 +100,18 @@ jobs:
           RELEASE_NAME: ${{ github.event.release.name || github.event.release.tag_name || steps.tag.outputs.tag }}
           RELEASE_BODY: ${{ github.event.release.body }}
           IS_AUTO: ${{ steps.tag.outputs.is_auto }}
+          TAG_NAME: ${{ steps.tag.outputs.tag }}
         run: |
+          # Compute release title
+          if [ "$IS_AUTO" = "true" ]; then
+            RELEASE_TITLE="Automated Build - ${TAG_NAME}"
+            echo "release_title=$RELEASE_TITLE" >> $GITHUB_OUTPUT
+          else
+            RELEASE_TITLE="${RELEASE_NAME}"
+            echo "release_title=$RELEASE_TITLE" >> $GITHUB_OUTPUT
+          fi
+
+          # Generate release notes
           if [ "$IS_AUTO" = "true" ]; then
             printf '## 📻 nrf24tool — %s (Automated Build)\n\n' "$RELEASE_NAME" > release_notes.md
             printf '> ⚠️ This is an **automated pre-release build** from the latest commit.\n\n' >> release_notes.md
@@ -146,7 +157,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: ${{ steps.tag.outputs.is_auto == 'true' && format('Automated Build - {0}', steps.tag.outputs.tag) || github.event.release.name }}
+          name: ${{ steps.notes.outputs.release_title }}
           prerelease: ${{ steps.tag.outputs.is_auto == 'true' }}
           files: |
             packed/*.zip
