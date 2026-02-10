@@ -54,6 +54,9 @@ jobs:
           for dir in release-assets/*/; do
             base=$(basename "$dir")
             zip -j "packed/${base}.zip" "$dir"/*
+            for fap in "$dir"*.fap; do
+              [ -f "$fap" ] && cp "$fap" "packed/${base}.fap"
+            done
           done
 
       - name: Generate release notes
@@ -77,8 +80,8 @@ jobs:
 
           ### 🛠️ Installation
 
-          1. Download the `.zip` for your preferred SDK channel
-          2. Extract the `.fap` file
+          1. Download the `.fap` file or `.zip` archive for your preferred SDK channel
+          2. If downloaded as `.zip`, extract the `.fap` file
           3. Copy to your Flipper Zero's SD card under `apps/GPIO/`
           4. Launch **[NRF24] Tool** from the GPIO menu
 
@@ -101,7 +104,9 @@ jobs:
       - name: Upload assets to release
         uses: softprops/action-gh-release@v2
         with:
-          files: packed/*.zip
+          files: |
+            packed/*.zip
+            packed/*.fap
           body_path: release_notes.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
