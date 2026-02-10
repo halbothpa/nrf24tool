@@ -257,7 +257,7 @@ int32_t nrf24_sniff(void* ctx) {
     SniffStatus* status = view_get_model(app->sniff_run);
 
     uint8_t address[MAX_MAC_SIZE];
-    uint32_t start_us = 0;
+    uint32_t start_tick = 0;
     Setting* setting = app->settings->sniff_settings;
     uint8_t min_channel = setting[SNIFF_SETTING_MIN_CHANNEL].value.u8;
     uint8_t max_channel = setting[SNIFF_SETTING_MAX_CHANNEL].value.u8;
@@ -288,7 +288,7 @@ int32_t nrf24_sniff(void* ctx) {
     status->current_channel = target_channel;
     view_commit_model(app->sniff_run, true);
 
-    start_us = furi_get_tick() * 1000;
+    start_tick = furi_get_tick();
 
     while(app->tool_running) {
         if(nrf24_sniff_address(address, setting[SNIFF_SETTING_RPD].value.b)) {
@@ -309,7 +309,7 @@ int32_t nrf24_sniff(void* ctx) {
             }
         }
 
-        uint32_t elapsed_us = (furi_get_tick() * 1000) - start_us;
+        uint32_t elapsed_us = (furi_get_tick() - start_tick) * 1000;
         if(elapsed_us >= setting[SNIFF_SETTING_SCAN_TIME].value.u16) {
             target_channel++;
             if(target_channel > max_channel) target_channel = min_channel;
@@ -321,7 +321,7 @@ int32_t nrf24_sniff(void* ctx) {
             nrf24_set_mode(NRF24_MODE_RX);
             status->current_channel = target_channel;
             view_commit_model(app->sniff_run, true);
-            start_us = furi_get_tick() * 1000;
+            start_tick = furi_get_tick();
         }
 
         // Small delay to yield to other threads while respecting microsecond timing
