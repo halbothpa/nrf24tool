@@ -1,0 +1,107 @@
+name: "🚀 Release FAP Builds"
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: dev channel
+            sdk-channel: dev
+          - name: release channel
+            sdk-channel: release
+    name: 'Build for ${{ matrix.name }}'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build with ufbt
+        uses: flipperdevices/flipperzero-ufbt-action@v0.1
+        id: build-app
+        with:
+          sdk-channel: ${{ matrix.sdk-channel }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.repository.name }}-${{ steps.build-app.outputs.suffix }}
+          path: ${{ steps.build-app.outputs.fap-artifacts }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    name: '📦 Publish Release'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: false
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p packed
+          for dir in release-assets/*/; do
+            base=$(basename "$dir")
+            zip -j "packed/${base}.zip" "$dir"/*
+          done
+
+      - name: Generate release notes
+        id: notes
+        env:
+          RELEASE_NAME: ${{ github.event.release.name || github.event.release.tag_name }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+        run: |
+          printf '## 📻 nrf24tool — %s\n\n' "$RELEASE_NAME" > release_notes.md
+          cat >> release_notes.md << 'EOF'
+          > Flipper Zero application for the NRF24L01+ transceiver module
+
+          ---
+
+          ### 📦 Build Artifacts
+
+          | Artifact | SDK Channel | Description |
+          |----------|-------------|-------------|
+          | `nrf24tool-*-dev` | 🔧 Dev | Built against the **development** SDK — latest features |
+          | `nrf24tool-*-release` | ✅ Release | Built against the **stable** SDK — recommended for most users |
+
+          ### 🛠️ Installation
+
+          1. Download the `.zip` for your preferred SDK channel
+          2. Extract the `.fap` file
+          3. Copy to your Flipper Zero's SD card under `apps/GPIO/`
+          4. Launch **[NRF24] Tool** from the GPIO menu
+
+          > ⚠️ Requires Flipper Zero firmware **1.1.2** or higher
+
+          ### ✨ Features
+
+          - **TX** — Transmit custom data packets (hex, ASCII, or from file)
+          - **RX** — Receive and display incoming packets
+          - **Sniffer** — Passively scan channels and detect Unifying receivers
+          - **Mouse Jacker** — Send keyboard commands via Unifying receivers
+
+          ---
+          EOF
+
+          if [ -n "$RELEASE_BODY" ]; then
+            printf '\n### 📝 Release Notes\n\n%s\n' "$RELEASE_BODY" >> release_notes.md
+          fi
+
+      - name: Upload assets to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: packed/*.zip
+          body_path: release_notes.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
