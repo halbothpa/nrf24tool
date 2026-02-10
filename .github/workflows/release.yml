@@ -48,6 +48,34 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect or create release tag
+        id: tag
+        run: |
+          # Check if current commit already has a tag
+          EXISTING_TAG=$(git tag --points-at HEAD)
+          
+          if [ -n "$EXISTING_TAG" ]; then
+            echo "Found existing tag: $EXISTING_TAG"
+            echo "tag=$EXISTING_TAG" >> $GITHUB_OUTPUT
+            echo "is_auto=false" >> $GITHUB_OUTPUT
+          else
+            # Generate automatic tag for non-tagged commits
+            DATE=$(date +%Y%m%d)
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            AUTO_TAG="auto-${DATE}-${SHORT_SHA}"
+            
+            echo "No tag found. Creating automatic tag: $AUTO_TAG"
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git tag -a "$AUTO_TAG" -m "Automated build for commit $SHORT_SHA"
+            git push origin "$AUTO_TAG"
+            
+            echo "tag=$AUTO_TAG" >> $GITHUB_OUTPUT
+            echo "is_auto=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
@@ -69,10 +97,16 @@ jobs:
       - name: Generate release notes
         id: notes
         env:
-          RELEASE_NAME: ${{ github.event.release.name || github.event.release.tag_name }}
+          RELEASE_NAME: ${{ github.event.release.name || github.event.release.tag_name || steps.tag.outputs.tag }}
           RELEASE_BODY: ${{ github.event.release.body }}
+          IS_AUTO: ${{ steps.tag.outputs.is_auto }}
         run: |
-          printf '## 📻 nrf24tool — %s\n\n' "$RELEASE_NAME" > release_notes.md
+          if [ "$IS_AUTO" = "true" ]; then
+            printf '## 📻 nrf24tool — %s (Automated Build)\n\n' "$RELEASE_NAME" > release_notes.md
+            printf '> ⚠️ This is an **automated pre-release build** from the latest commit.\n\n' >> release_notes.md
+          else
+            printf '## 📻 nrf24tool — %s\n\n' "$RELEASE_NAME" > release_notes.md
+          fi
           cat >> release_notes.md << 'EOF'
           > Flipper Zero application for the NRF24L01+ transceiver module
 
@@ -111,6 +145,9 @@ jobs:
       - name: Upload assets to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.is_auto == 'true' && format('Automated Build - {0}', steps.tag.outputs.tag) || github.event.release.name }}
+          prerelease: ${{ steps.tag.outputs.is_auto == 'true' }}
           files: |
             packed/*.zip
             packed/*.fap
