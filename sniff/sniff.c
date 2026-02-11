@@ -32,12 +32,12 @@ Setting sniff_defaults[] = {
      .min = DEFAULT_MIN_CHANNEL,
      .max = DEFAULT_MAX_CHANNEL,
      .step = 1},
-    {.name = "Scan Time (µs)",
+    {.name = "Scan Time (ms)",
      .type = SETTING_TYPE_UINT16,
      .value.u16 = DEFAULT_SCANTIME,
-     .min = 500,
+     .min = 1,
      .max = 10000,
-     .step = 500},
+     .step = 1},
     {.name = "Data Rate",
      .type = SETTING_TYPE_DATA_RATE,
      .value.d_r = DATA_RATE_2MBPS,
@@ -257,7 +257,7 @@ int32_t nrf24_sniff(void* ctx) {
     SniffStatus* status = view_get_model(app->sniff_run);
 
     uint8_t address[MAX_MAC_SIZE];
-    uint32_t start = 0;
+    uint32_t start_tick = 0;
     Setting* setting = app->settings->sniff_settings;
     uint8_t min_channel = setting[SNIFF_SETTING_MIN_CHANNEL].value.u8;
     uint8_t max_channel = setting[SNIFF_SETTING_MAX_CHANNEL].value.u8;
@@ -288,7 +288,7 @@ int32_t nrf24_sniff(void* ctx) {
     status->current_channel = target_channel;
     view_commit_model(app->sniff_run, true);
 
-    start = furi_get_tick();
+    start_tick = furi_get_tick();
 
     while(app->tool_running) {
         if(nrf24_sniff_address(address, setting[SNIFF_SETTING_RPD].value.b)) {
@@ -309,7 +309,8 @@ int32_t nrf24_sniff(void* ctx) {
             }
         }
 
-        if(furi_get_tick() - start >= setting[SNIFF_SETTING_SCAN_TIME].value.u16) {
+        uint32_t elapsed_ticks = furi_get_tick() - start_tick;
+        if(elapsed_ticks >= setting[SNIFF_SETTING_SCAN_TIME].value.u16) {
             target_channel++;
             if(target_channel > max_channel) target_channel = min_channel;
 
@@ -320,11 +321,11 @@ int32_t nrf24_sniff(void* ctx) {
             nrf24_set_mode(NRF24_MODE_RX);
             status->current_channel = target_channel;
             view_commit_model(app->sniff_run, true);
-            start = furi_get_tick();
+            start_tick = furi_get_tick();
         }
 
-        // delay for main thread
-        furi_delay_ms(100);
+        // Small delay to yield to other threads while maintaining responsiveness
+        furi_delay_ms(1);
     }
     // stop NRF24
     nrf24_set_mode(NRF24_MODE_POWER_DOWN);
