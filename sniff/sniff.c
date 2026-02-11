@@ -32,12 +32,12 @@ Setting sniff_defaults[] = {
      .min = DEFAULT_MIN_CHANNEL,
      .max = DEFAULT_MAX_CHANNEL,
      .step = 1},
-    {.name = "Scan Time (µs)",
+    {.name = "Scan Time (ms)",
      .type = SETTING_TYPE_UINT16,
      .value.u16 = DEFAULT_SCANTIME,
-     .min = 50,
+     .min = 1,
      .max = 10000,
-     .step = 50},
+     .step = 1},
     {.name = "Data Rate",
      .type = SETTING_TYPE_DATA_RATE,
      .value.d_r = DATA_RATE_2MBPS,
@@ -309,8 +309,8 @@ int32_t nrf24_sniff(void* ctx) {
             }
         }
 
-        uint32_t elapsed_us = (furi_get_tick() - start_tick) * 1000;
-        if(elapsed_us >= setting[SNIFF_SETTING_SCAN_TIME].value.u16) {
+        uint32_t elapsed_ticks = furi_get_tick() - start_tick;
+        if(elapsed_ticks >= setting[SNIFF_SETTING_SCAN_TIME].value.u16) {
             target_channel++;
             if(target_channel > max_channel) target_channel = min_channel;
 
@@ -324,7 +324,7 @@ int32_t nrf24_sniff(void* ctx) {
             start_tick = furi_get_tick();
         }
 
-        // Small delay to yield to other threads while respecting microsecond timing
+        // Small delay to yield to other threads while maintaining responsiveness
         furi_delay_us(100);
     }
     // stop NRF24
