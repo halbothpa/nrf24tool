@@ -14,7 +14,7 @@
 #define MAX_CONFIRMED       32
 #define DEFAULT_MAX_CHANNEL MAX_CHANNEL
 #define DEFAULT_MIN_CHANNEL 0
-#define DEFAULT_SCANTIME    4000
+#define DEFAULT_SCANTIME    4
 #define COUNT_THRESHOLD     2
 
 typedef struct SniffStatus {
