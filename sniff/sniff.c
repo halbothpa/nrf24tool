@@ -325,7 +325,7 @@ int32_t nrf24_sniff(void* ctx) {
         }
 
         // Small delay to yield to other threads while maintaining responsiveness
-        furi_delay_us(100);
+        furi_delay_ms(1);
     }
     // stop NRF24
     nrf24_set_mode(NRF24_MODE_POWER_DOWN);
