@@ -121,7 +121,7 @@ jobs:
         id: notes
         env:
           RELEASE_NAME: ${{ steps.tag.outputs.tag }}
-          RELEASE_BODY: ${{ github.event.release.body || '' }}
+          RELEASE_BODY: ""
           IS_AUTO: ${{ steps.tag.outputs.is_auto }}
           TAG_NAME: ${{ steps.tag.outputs.tag }}
         run: |
