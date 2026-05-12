@@ -1,17 +1,13 @@
 name: "FAP: Build for multiple SDK sources"
-# This will build your app for dev and release channels on GitHub. 
-# It will also build your app every day to make sure it's up to date with the latest SDK changes.
+# This will build your app for dev and release channels on GitHub.
+# It runs on pushes to main and when started manually.
 # See https://github.com/marketplace/actions/build-flipper-application-package-fap for more information
 
 on:
   push:
-    ## put your main branch name under "branches"
-    #branches: 
-    #  - master 
-  pull_request:
-  schedule: 
-    # do a build every day
-    - cron: "1 1 * * *"
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   ufbt-build:

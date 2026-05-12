@@ -1,22 +1,15 @@
 name: "🚀 Release FAP Builds"
 
 # Automated Tag Management:
-# - For push/schedule triggers without a tag: Creates auto-YYYYMMDD-<7-char-sha> tag (UTC)
-# - For release triggers: Uses the release's tag (e.g., v1.0.0)
+# - For push/workflow_dispatch triggers without a tag: Creates auto-YYYYMMDD-<7-char-sha> tag (UTC)
+# - If the current commit already has a non-auto tag, that tag is reused
 # - Auto-tagged releases are marked as pre-releases
-# - Manual releases (with custom tags) are full releases
 
 on:
-  release:
-    types: [published]
   push:
-    ## put your main branch name under "branches"
-    branches: 
-      - main 
-  #pull_request:
-  schedule: 
-    # do a build every day
-    - cron: "1 1 * * *"
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -60,16 +53,7 @@ jobs:
       - name: Detect or create release tag
         id: tag
         run: |
-          # For release events, always use the triggering release's tag
-          if [ "${{ github.event_name }}" = "release" ]; then
-            TAG="${{ github.event.release.tag_name }}"
-            echo "Using release tag: $TAG"
-            echo "tag=$TAG" >> $GITHUB_OUTPUT
-            echo "is_auto=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # For push/schedule events, check for existing non-auto tags first
+          # For push/workflow_dispatch events, check for existing non-auto tags first
           EXISTING_TAG=$(git tag --points-at HEAD | grep -v '^auto-' | head -n 1)
 
           if [ -n "$EXISTING_TAG" ]; then
@@ -136,8 +120,8 @@ jobs:
       - name: Generate release notes
         id: notes
         env:
-          RELEASE_NAME: ${{ github.event.release.name || github.event.release.tag_name || steps.tag.outputs.tag }}
-          RELEASE_BODY: ${{ github.event.release.body }}
+          RELEASE_NAME: ${{ steps.tag.outputs.tag }}
+          RELEASE_BODY: ""
           IS_AUTO: ${{ steps.tag.outputs.is_auto }}
           TAG_NAME: ${{ steps.tag.outputs.tag }}
         run: |
