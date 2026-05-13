@@ -85,9 +85,11 @@ static void run_draw_callback(Canvas* canvas, void* model) {
 
     // draw lines
     uint8_t y = start_y;
-    for(uint8_t i = status->scroll_vert;
-        i < MIN(line_index, status->scroll_vert + TX_MAX_DISPLAY_LINES);
-        i++) {
+    uint8_t visible_end = status->scroll_vert + TX_MAX_DISPLAY_LINES;
+    if(visible_end > line_index) {
+        visible_end = line_index;
+    }
+    for(uint8_t i = status->scroll_vert; i < visible_end; i++) {
         canvas_draw_str(canvas, start_x, y, lines[i]);
         y += TX_LINE_HEIGHT;
     }
