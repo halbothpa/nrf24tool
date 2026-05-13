@@ -5,14 +5,14 @@ name: "🚀 Release FAP Builds"
 # - If the current commit already has a non-auto tag, that tag is reused
 # - Auto-tagged releases are marked as pre-releases
 
-permissions:
-  contents: read
-
 on:
   push:
     branches:
       - main
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
