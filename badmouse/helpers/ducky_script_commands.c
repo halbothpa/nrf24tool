@@ -254,7 +254,7 @@ static const DuckyCmd ducky_commands[] = {
 
 int32_t ducky_execute_cmd(BadMouse* badmouse, const char* line) {
     size_t cmd_word_len = strcspn(line, " ");
-    for(uint8_t i = 0; i < COUNT_OF(ducky_commands); i++) {
+    for(size_t i = 0; i < COUNT_OF(ducky_commands); i++) {
         size_t cmd_compare_len = ducky_commands[i].length;
         if(cmd_compare_len != cmd_word_len) {
             continue;
